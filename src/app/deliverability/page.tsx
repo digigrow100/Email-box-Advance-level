@@ -26,12 +26,12 @@ export default async function DeliverabilityPage() {
 
     <section className="card mt-6 overflow-hidden">
       <div className="border-b border-slate-100 px-5 py-4"><h2 className="font-bold">Sending domain health</h2><p className="mt-1 text-xs text-slate-500">DNS authentication checks are direct observations. Inbox placement for recipients you do not control remains unknown.</p></div>
-      <div className="responsive-table"><table className="data-table"><thead><tr><th>Domain</th><th>Score</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>MX</th><th>Last checked</th></tr></thead><tbody>{data.domains.length ? data.domains.map((d:any)=><tr key={d.id}><td className="font-semibold">{d.domain}</td><td className="font-bold">{d.health_score}/100</td><td>{authBadge(d.spf_status)}</td><td>{authBadge(d.dkim_status)}</td><td>{authBadge(d.dmarc_status)}</td><td>{authBadge(d.mx_status)}</td><td className="text-xs text-slate-500">{d.last_checked_at ? new Date(d.last_checked_at).toLocaleString() : "Never"}</td></tr>) : <tr><td colSpan={7} className="text-sm text-slate-500">Run your first DNS check below.</td></tr>}</tbody></table></div>
+      <div className="responsive-table"><table className="data-table"><thead><tr><th>Domain</th><th>Score</th><th>SPF</th><th>DKIM</th><th>DMARC</th><th>MX</th><th>Last checked</th></tr></thead><tbody>{data.domains.length ? data.domains.map((d)=><tr key={d.id}><td className="font-semibold">{d.domain}</td><td className="font-bold">{d.health_score}/100</td><td>{authBadge(d.spf_status)}</td><td>{authBadge(d.dkim_status)}</td><td>{authBadge(d.dmarc_status)}</td><td>{authBadge(d.mx_status)}</td><td className="text-xs text-slate-500">{d.last_checked_at ? new Date(d.last_checked_at).toLocaleString() : "Never"}</td></tr>) : <tr><td colSpan={7} className="text-sm text-slate-500">Run your first DNS check below.</td></tr>}</tbody></table></div>
     </section>
 
-    <div className="mt-6"><DeliverabilityControls mailboxes={data.mailboxes as any} seeds={data.seeds as any} tests={data.tests as any} /></div>
+    <div className="mt-6"><DeliverabilityControls mailboxes={data.mailboxes} seeds={data.seeds} tests={data.tests} /></div>
 
-    <div className="mt-6"><ProviderReputationPanel integration={provider.integration as any} snapshots={provider.snapshots as any} /></div>
+    <div className="mt-6"><ProviderReputationPanel integration={provider.integration} snapshots={provider.snapshots} /></div>
 
     <section className="card mt-6 p-5">
       <h2 className="font-bold">What this can and cannot prove</h2>

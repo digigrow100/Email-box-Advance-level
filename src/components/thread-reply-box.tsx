@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 export function ThreadReplyBox({ threadId, mailboxId, to, subject }: { threadId: string; mailboxId: string; to: string; subject: string }) {
   const [body, setBody] = useState("");
@@ -33,7 +33,7 @@ export function ThreadReplyBox({ threadId, mailboxId, to, subject }: { threadId:
 
   return <div className="card p-5">
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-bold">Reply</h3><p className="text-xs text-slate-500">To {to}</p></div><button type="button" onClick={aiDraft} disabled={busy} className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 disabled:opacity-50">AI draft in my tone</button></div>
-    <textarea value={body} onChange={(e: any) => setBody(e.target.value)} rows={8} className="mt-4 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:border-indigo-400" placeholder="Write a reply…" />
+    <textarea value={body} onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setBody(e.target.value)} rows={8} className="mt-4 w-full rounded-2xl border border-slate-200 p-4 text-sm leading-6 outline-none focus:border-indigo-400" placeholder="Write a reply…" />
     <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => submit("send")} disabled={busy} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Send now</button><button type="button" onClick={() => submit("schedule")} disabled={busy} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Schedule +10 min</button></div>
     {status && <p className="mt-3 text-sm text-slate-500">{status}</p>}
   </div>;

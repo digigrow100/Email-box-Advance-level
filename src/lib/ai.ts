@@ -19,7 +19,12 @@ type ReplyContext = {
   extraInstructions?: string;
 };
 
-function outputText(payload: any) {
+type OpenAiResponsePayload = {
+  output_text?: string;
+  output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
+};
+
+function outputText(payload: OpenAiResponsePayload) {
   if (typeof payload?.output_text === "string") return payload.output_text.trim();
   const chunks: string[] = [];
   for (const item of payload?.output ?? []) {

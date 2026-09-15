@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     await requireUser();
-    const body = await jsonBody<any>(request, 64_000);
+    const body = await jsonBody(request, 64_000);
     const email = requireEmail(body.email);
     const password = boundedText(body.password, "Password", 512);
     const imapPort = Number(body.imapPort ?? 993);

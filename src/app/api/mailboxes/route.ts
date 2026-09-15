@@ -26,7 +26,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 64_000);
+    const body = await jsonBody(request, 64_000);
     const email = requireEmail(body.email);
     const displayName = boundedText(body.displayName, "Display name", 120, { required: false }) || null;
     const password = boundedText(body.password, "Password", 512);

@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 150_000);
+    const body = await jsonBody(request, 150_000);
     const samples = Array.isArray(body.samples) ? body.samples.slice(0, 20).map((s: unknown) => String(s).slice(0, 5_000)).filter(Boolean) : [];
 
     if (body.action === "analyze") {

@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Contact, Mailbox } from "@/lib/types";
 
 const field = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400";
 
 export function CampaignForm({ mailboxes, contacts }: { mailboxes: Mailbox[]; contacts: Contact[] }) {
+  const router = useRouter();
   const activeContacts = useMemo(() => contacts.filter((c: Contact) => c.status === "active" || c.status === "replied"), [contacts]);
   const [selected, setSelected] = useState<string[]>(activeContacts.slice(0, 10).map((c: Contact) => c.id));
   const [message, setMessage] = useState("");
@@ -27,7 +29,7 @@ export function CampaignForm({ mailboxes, contacts }: { mailboxes: Mailbox[]; co
       const response = await fetch("/api/campaigns", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Could not create campaign");
-      window.location.href = "/campaigns";
+      router.push("/campaigns");
     } catch (error) { setMessage(error instanceof Error ? error.message : "Could not create campaign"); }
     finally { setBusy(false); }
   }

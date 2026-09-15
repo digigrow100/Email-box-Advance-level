@@ -51,7 +51,7 @@ export async function sendSmtpMail(credentials: SmtpCredentials, message: { from
       references: message.references,
       messageId: message.messageId,
       headers: message.headers,
-      dsn: message.requestDsn ? ({ notify: "FAILURE,DELAY", ret: "HDRS" } as any) : undefined,
+      dsn: message.requestDsn ? { notify: "FAILURE,DELAY", ret: "HDRS" } : undefined,
     });
     return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected, response: info.response };
   } finally {

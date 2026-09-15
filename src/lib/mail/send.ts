@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { runtimeCredentials, type StoredMailbox } from "@/lib/mail/account";
 import { sendSmtpMail } from "@/lib/mail/smtp";
 import { externalThreadKey } from "@/lib/mail/threading";
@@ -11,7 +12,7 @@ function generatedMessageId(email: string) {
   return `<${crypto.randomUUID()}@${domain}>`;
 }
 
-export async function sendAndStore(supabase: any, input: {
+export async function sendAndStore(supabase: SupabaseClient, input: {
   userId: string;
   mailbox: StoredMailbox & { timezone?: string | null };
   to: string[];

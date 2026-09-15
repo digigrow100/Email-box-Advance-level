@@ -6,7 +6,7 @@ import { jsonBody, normalizeEmail, validEmail } from "@/lib/validation";
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 5_000_000);
+    const body = await jsonBody(request, 5_000_000);
     if (!body.csv || typeof body.csv !== "string") throw new Error("CSV content is required");
     const rows = parseCsv(body.csv).slice(0, 5_000);
     const contacts = rows.map((row) => ({

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const field = "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-indigo-400";
 
 export function ConnectMailboxForm() {
+  const router = useRouter();
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +32,7 @@ export function ConnectMailboxForm() {
       const save = await fetch("/api/mailboxes", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const saveBody = await save.json();
       if (!save.ok) throw new Error(saveBody.error || "Could not save mailbox");
-      window.location.href = "/mailboxes";
+      router.push("/mailboxes");
     } catch (error) { setStatus(error instanceof Error ? error.message : "Connection failed"); }
     finally { setBusy(false); }
   }

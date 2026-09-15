@@ -43,7 +43,7 @@ export default async function MailboxesPage() {
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="card p-5"><h2 className="font-bold">Connect Gmail</h2><p className="mt-2 text-sm leading-6 text-slate-500">Use Google OAuth. The app stores an encrypted refresh token and can use OAuth2 for Gmail sending and inbox access.</p><a href="/api/gmail/connect" className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Connect with Google</a></section>
-        <section className="card p-5"><h2 className="font-bold">Connect professional email</h2><p className="mt-2 text-sm leading-6 text-slate-500">Enter your provider's IMAP and SMTP host, ports, mailbox address and app password. Hostinger, cPanel and many other providers work this way.</p><a href="/mailboxes/new" className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Open connection form</a></section>
+        <section className="card p-5"><h2 className="font-bold">Connect professional email</h2><p className="mt-2 text-sm leading-6 text-slate-500">Enter your provider&apos;s IMAP and SMTP host, ports, mailbox address and app password. Hostinger, cPanel and many other providers work this way.</p><a href="/mailboxes/new" className="mt-4 inline-flex rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold hover:bg-slate-50">Open connection form</a></section>
       </div>
     </AppShell>
   );

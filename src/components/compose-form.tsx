@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 
 export function ComposeForm({ mailboxes }: { mailboxes: Array<{ id: string; email: string }> }) {
   const [status, setStatus] = useState("");
@@ -21,7 +21,7 @@ export function ComposeForm({ mailboxes }: { mailboxes: Array<{ id: string; emai
       <label className="text-sm font-semibold sm:col-span-2">Message<textarea name="body" required rows={12} className="mt-1.5 w-full rounded-xl border border-slate-200 p-3 leading-6" /></label>
       <label className="text-sm font-semibold">Schedule time<input name="scheduledAt" type="datetime-local" className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5" /></label>
     </div>
-    <div className="mt-5 flex flex-wrap gap-2"><button disabled={busy} onClick={(e: any)=>{e.preventDefault(); if(e.currentTarget.form) submitForm(e.currentTarget.form, "send")}} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">Send now</button><button disabled={busy} onClick={(e: any)=>{e.preventDefault(); if(e.currentTarget.form) submitForm(e.currentTarget.form, "schedule")}} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Schedule</button></div>
+    <div className="mt-5 flex flex-wrap gap-2"><button disabled={busy} onClick={(e: MouseEvent<HTMLButtonElement>)=>{e.preventDefault(); if(e.currentTarget.form) submitForm(e.currentTarget.form, "send")}} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white">Send now</button><button disabled={busy} onClick={(e: MouseEvent<HTMLButtonElement>)=>{e.preventDefault(); if(e.currentTarget.form) submitForm(e.currentTarget.form, "schedule")}} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Schedule</button></div>
     {status && <p className="mt-3 text-sm text-slate-500">{status}</p>}
   </form>;
 }

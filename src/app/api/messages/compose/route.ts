@@ -11,10 +11,10 @@ export async function POST(request: Request) {
     const { supabase, user } = await requireUser();
     const idempotencyHeader = request.headers.get("idempotency-key");
     const idempotencyKey = idempotencyHeader ? boundedText(idempotencyHeader, "Idempotency key", 160) : undefined;
-    const body = await jsonBody<any>(request, 350_000);
+    const body = await jsonBody(request, 350_000);
     const mailboxId = boundedText(body.mailboxId, "Mailbox", 100);
     const to = requireEmailList(body.to, "recipients", 50);
-    const cc = body.cc?.length ? requireEmailList(body.cc, "CC recipients", 50) : [];
+    const cc = Array.isArray(body.cc) && body.cc.length ? requireEmailList(body.cc, "CC recipients", 50) : [];
     const subject = boundedText(body.subject, "Subject", 998);
     const text = boundedText(body.body, "Body", 250_000);
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     if (error || !mailbox) throw new Error("Mailbox not found");
 
     if (body.mode === "schedule") {
-      const when = body.scheduledAt ? new Date(body.scheduledAt) : null;
+      const when = typeof body.scheduledAt === "string" || typeof body.scheduledAt === "number" ? new Date(body.scheduledAt) : null;
       if (!when || Number.isNaN(when.getTime()) || when <= new Date()) return NextResponse.json({ error: "Choose a future schedule time" }, { status: 400 });
       const { data, error: insertError } = await supabase.from("scheduled_messages").insert({
         user_id: user.id,

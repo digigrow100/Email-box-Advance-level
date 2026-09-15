@@ -2,7 +2,36 @@
 
 import { useState } from "react";
 
-export function ProviderReputationPanel({ integration, snapshots }: { integration: any; snapshots: any[] }) {
+type ProviderIntegration = {
+  id: string;
+  provider: string;
+  account_email?: string | null;
+  status: string;
+  last_sync_at?: string | null;
+  metadata?: Record<string, unknown> | null;
+} | null;
+
+type ProviderSnapshot = {
+  id: string;
+  provider: string;
+  period_start: string;
+  period_end: string;
+  spam_rate: number | null;
+  delivery_error_rate: number | null;
+  spf_success_rate: number | null;
+  dkim_success_rate: number | null;
+  dmarc_success_rate: number | null;
+  tls_rate: number | null;
+  compliance?: Record<string, unknown> | null;
+  created_at: string;
+  deliverability_domains?: { domain?: string } | { domain?: string }[] | null;
+};
+
+function joinedDomain(value: ProviderSnapshot["deliverability_domains"]): string | undefined {
+  return Array.isArray(value) ? value[0]?.domain : value?.domain;
+}
+
+export function ProviderReputationPanel({ integration, snapshots }: { integration: ProviderIntegration; snapshots: ProviderSnapshot[] }) {
   const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState("");
   async function sync() {
@@ -16,9 +45,9 @@ export function ProviderReputationPanel({ integration, snapshots }: { integratio
     } catch (error) { setMessage(error instanceof Error ? error.message : "Sync failed"); }
     finally { setSyncing(false); }
   }
-  const latestByDomain = new Map<string, any>();
+  const latestByDomain = new Map<string, ProviderSnapshot>();
   for (const row of snapshots) {
-    const domain = row.deliverability_domains?.domain || "domain";
+    const domain = joinedDomain(row.deliverability_domains) || "domain";
     if (!latestByDomain.has(domain)) latestByDomain.set(domain, row);
   }
   return <section className="card p-5">

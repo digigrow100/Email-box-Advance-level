@@ -1,9 +1,12 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateAiReply } from "@/lib/ai";
 import { autoReplySafety } from "@/lib/mail/safety";
 import { writeAudit } from "@/lib/audit";
-import { runtimeCredentials } from "@/lib/mail/account";
+import { runtimeCredentials, type StoredMailbox } from "@/lib/mail/account";
 import { archiveImapMessage, markImapMessageSeen } from "@/lib/mail/imap";
+
+type RuleAction = Record<string, unknown> & { type?: string; mode?: string; toneProfileId?: string; instructions?: string; delayMinutes?: number };
 
 type Rule = {
   id: string;
@@ -11,9 +14,21 @@ type Rule = {
   name: string;
   enabled: boolean;
   conditions: Record<string, unknown>;
-  actions: Array<Record<string, any>>;
+  actions: RuleAction[];
   priority: number;
   cooldown_minutes: number;
+};
+
+type AutomationThread = { id: string; user_id?: string; [key: string]: unknown };
+type AutomationMessage = {
+  id: string;
+  from_email: string;
+  subject: string;
+  body_text: string;
+  provider_uid?: string | number | null;
+  provider_message_id?: string | null;
+  references_header?: string | null;
+  [key: string]: unknown;
 };
 
 function textMatch(value: string, query?: unknown) {
@@ -31,11 +46,11 @@ export function ruleMatches(rule: Rule, context: { from: string; subject: string
   return true;
 }
 
-export async function processInboundAutomations(supabase: any, input: {
+export async function processInboundAutomations(supabase: SupabaseClient, input: {
   userId: string;
-  mailbox: any;
-  thread: any;
-  message: any;
+  mailbox: StoredMailbox;
+  thread: AutomationThread;
+  message: AutomationMessage;
 }) {
   const [{ data: rules, error: rulesError }, { data: contact }, { data: aiSettings }] = await Promise.all([
     supabase.from("automation_rules").select("*").eq("user_id", input.userId).eq("enabled", true).eq("trigger_type", "inbound_email").order("priority"),
@@ -136,7 +151,7 @@ export async function processInboundAutomations(supabase: any, input: {
         recipientEmail: input.mailbox.email,
         subject: input.message.subject,
         inboundText: input.message.body_text,
-        recentThread: (recent ?? []).map((m: any) => ({ direction: m.direction, text: m.body_text })),
+        recentThread: ((recent ?? []) as Array<{ direction: "inbound" | "outbound"; body_text: string }>).map((m) => ({ direction: m.direction, text: m.body_text })),
         tone: tone ? {
           name: tone.name,
           instructions: tone.instructions,

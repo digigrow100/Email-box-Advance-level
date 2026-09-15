@@ -11,15 +11,39 @@ async function pageUser() {
   catch { return redirect("/login"); }
 }
 
+export type DeliverabilityDomainRow = {
+  id: string;
+  domain: string;
+  health_score: number | null;
+  spf_status: string;
+  dkim_status: string;
+  dmarc_status: string;
+  mx_status: string;
+  last_checked_at: string | null;
+  [key: string]: unknown;
+};
+
+type MailboxRow = {
+  id: string;
+  provider: string;
+  email: string;
+  display_name: string | null;
+  status: string;
+  daily_limit: number;
+  ramp_day: number;
+  last_sync_at: string | null;
+  timezone: string | null;
+};
+
 export async function listMailboxes(): Promise<Mailbox[]> {
   if (env.demoMode) return demoMailboxes;
   const { supabase, user } = await pageUser();
   const { data, error } = await supabase.from("mailboxes").select("id,provider,email,display_name,status,daily_limit,ramp_day,last_sync_at,timezone").eq("user_id", user.id).order("created_at", { ascending: false });
   if (error) throw error;
   const month = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  return Promise.all((data ?? []).map(async (row: any) => {
+  return Promise.all((data ?? []).map(async (row: MailboxRow) => {
     const [usageToday, { count: sentMonth }, { count: replies }] = await Promise.all([
-      supabase.from("mailbox_daily_usage").select("sent_count").eq("mailbox_id", row.id).eq("usage_date", dateKeyInTimeZone((row as any).timezone || "UTC")).maybeSingle(),
+      supabase.from("mailbox_daily_usage").select("sent_count").eq("mailbox_id", row.id).eq("usage_date", dateKeyInTimeZone(row.timezone || "UTC")).maybeSingle(),
       supabase.from("message_events").select("id", { count: "exact", head: true }).eq("mailbox_id", row.id).eq("type", "sent").gte("created_at", month),
       supabase.from("message_events").select("id", { count: "exact", head: true }).eq("mailbox_id", row.id).eq("type", "reply").gte("created_at", month),
     ]);
@@ -40,12 +64,26 @@ export async function listMailboxes(): Promise<Mailbox[]> {
   }));
 }
 
+type CampaignRow = {
+  id: string;
+  name: string;
+  status: string;
+  mailbox_id: string;
+  created_at: string;
+  mailboxes: { email: string } | { email: string }[] | null;
+};
+
+function joinedOne<T>(value: T | T[] | null | undefined): T | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
 export async function listCampaigns(): Promise<Campaign[]> {
   if (env.demoMode) return demoCampaigns;
   const { supabase, user } = await pageUser();
   const { data, error } = await supabase.from("campaigns").select("id,name,status,mailbox_id,created_at,mailboxes(email)").eq("user_id", user.id).order("created_at", { ascending: false });
   if (error) throw error;
-  return Promise.all((data ?? []).map(async (row: any) => {
+  return Promise.all((data ?? []).map(async (row: CampaignRow) => {
     const [{ count: contacts }, { count: sent }, { count: replies }] = await Promise.all([
       supabase.from("campaign_contacts").select("id", { count: "exact", head: true }).eq("campaign_id", row.id),
       supabase.from("campaign_contacts").select("id", { count: "exact", head: true }).eq("campaign_id", row.id).in("status", ["sent", "replied"]),
@@ -55,7 +93,7 @@ export async function listCampaigns(): Promise<Campaign[]> {
       id: row.id,
       name: row.name,
       status: row.status,
-      mailbox: row.mailboxes?.email ?? "Mailbox",
+      mailbox: joinedOne(row.mailboxes)?.email ?? "Mailbox",
       contacts: contacts ?? 0,
       sent: sent ?? 0,
       replies: replies ?? 0,
@@ -64,12 +102,21 @@ export async function listCampaigns(): Promise<Campaign[]> {
   }));
 }
 
+type ContactRow = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  status: Contact["status"];
+};
+
 export async function listContacts(): Promise<Contact[]> {
   if (env.demoMode) return demoContacts;
   const { supabase, user } = await pageUser();
   const { data, error } = await supabase.from("contacts").select("id,email,first_name,last_name,company,status").eq("user_id", user.id).order("created_at", { ascending: false }).limit(500);
   if (error) throw error;
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row: ContactRow) => ({
     id: row.id,
     name: [row.first_name, row.last_name].filter(Boolean).join(" ") || "—",
     email: row.email,
@@ -78,12 +125,21 @@ export async function listContacts(): Promise<Contact[]> {
   })) as Contact[];
 }
 
+type MessageEventMetadata = { reason?: string; subject?: string; to?: string };
+
+type MessageEventRow = {
+  id: string;
+  type: string;
+  metadata: MessageEventMetadata | null;
+  created_at: string;
+};
+
 export async function listActivity(): Promise<ActivityItem[]> {
   if (env.demoMode) return demoActivity;
   const { supabase, user } = await pageUser();
   const { data, error } = await supabase.from("message_events").select("id,type,metadata,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
   if (error) throw error;
-  return (data ?? []).map((row: any) => {
+  return (data ?? []).map((row: MessageEventRow) => {
     const meta = row.metadata ?? {};
     const titleMap: Record<string, string> = {
       sent: "Message sent", reply: "Reply received", bounce: "Bounce recorded", failed: "Send failed",
@@ -124,14 +180,25 @@ export async function listThreads() {
     { id: "demo-thread-2", subject: "Re: SEO audit for Brooks Dental", mailbox: "sales@northstaragency.com", participant: "daniel@example.org", preview: "Yes, Thursday afternoon works for me.", unread: 0, status: "open", time: "42 min ago" },
     { id: "demo-thread-3", subject: "Quick question about Lewis Legal", mailbox: "northstar.outreach@gmail.com", participant: "emma@example.org", preview: "Please send the details to our office manager.", unread: 0, status: "open", time: "Yesterday" },
   ];
+  type ThreadMessagePreviewRow = { body_text: string | null; from_email: string; created_at: string };
+  type ThreadRow = {
+    id: string;
+    subject: string;
+    participants: string[] | null;
+    unread_count: number;
+    status: string;
+    last_message_at: string;
+    mailboxes: { email: string } | { email: string }[] | null;
+    mail_messages: ThreadMessagePreviewRow[] | null;
+  };
   const { supabase, user } = await pageUser();
   const { data, error } = await supabase.from("mail_threads").select("id,subject,participants,unread_count,status,last_message_at,mailboxes(email),mail_messages(body_text,from_email,created_at)").eq("user_id", user.id).order("last_message_at", { ascending: false }).limit(100);
   if (error) throw error;
-  return (data ?? []).map((row: any) => {
-    const msgs = Array.isArray(row.mail_messages) ? row.mail_messages.sort((a: any, b: any) => +new Date(b.created_at) - +new Date(a.created_at)) : [];
+  return (data ?? []).map((row: ThreadRow) => {
+    const msgs = Array.isArray(row.mail_messages) ? [...row.mail_messages].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at)) : [];
     const latest = msgs[0];
     const participants = Array.isArray(row.participants) ? row.participants : [];
-    return { id: row.id, subject: row.subject, mailbox: row.mailboxes?.email ?? "Mailbox", participant: latest?.from_email ?? participants[0] ?? "Unknown", preview: latest?.body_text?.slice(0, 140) ?? "", unread: row.unread_count, status: row.status, time: new Date(row.last_message_at).toLocaleString() };
+    return { id: row.id, subject: row.subject, mailbox: joinedOne(row.mailboxes)?.email ?? "Mailbox", participant: latest?.from_email ?? participants[0] ?? "Unknown", preview: latest?.body_text?.slice(0, 140) ?? "", unread: row.unread_count, status: row.status, time: new Date(row.last_message_at).toLocaleString() };
   });
 }
 
@@ -143,20 +210,39 @@ export async function getThread(threadId: string) {
     mailbox: "hamza@northstaragency.com",
     participant: "olivia@example.org",
     messages: [
-      { id: "m1", direction: "outbound", from: "hamza@northstaragency.com", body: "Hi Olivia,\n\nI had a quick idea for improving the conversion flow on your website. Happy to send a short breakdown if useful.\n\nBest,\nHamza", time: "Today, 10:14" },
-      { id: "m2", direction: "inbound", from: "olivia@example.org", body: "Hi Hamza,\n\nThanks for sending this over. Could you also confirm the timeline and what would be included?\n\nOlivia", time: "Today, 10:31" },
+      { id: "m1", direction: "outbound", from: "hamza@northstaragency.com", body: "Hi Olivia,\n\nI had a quick idea for improving the conversion flow on your website. Happy to send a short breakdown if useful.\n\nBest,\nHamza", time: "Today, 10:14", providerMessageId: null, references: null, ai: false },
+      { id: "m2", direction: "inbound", from: "olivia@example.org", body: "Hi Hamza,\n\nThanks for sending this over. Could you also confirm the timeline and what would be included?\n\nOlivia", time: "Today, 10:31", providerMessageId: null, references: null, ai: false },
     ],
   };
+  type ThreadDetailRow = {
+    id: string;
+    subject: string;
+    participants: string[] | null;
+    mailbox_id: string;
+    mailboxes: { email: string } | { email: string }[] | null;
+  };
+  type MessageDetailRow = {
+    id: string;
+    direction: string;
+    from_email: string;
+    body_text: string | null;
+    created_at: string;
+    provider_message_id: string | null;
+    in_reply_to: string | null;
+    references_header: string | null;
+    is_ai_generated: boolean;
+  };
   const { supabase, user } = await pageUser();
-  const { data: thread, error } = await supabase.from("mail_threads").select("id,subject,participants,mailbox_id,mailboxes(email)").eq("id", threadId).eq("user_id", user.id).single();
+  const { data: threadData, error } = await supabase.from("mail_threads").select("id,subject,participants,mailbox_id,mailboxes(email)").eq("id", threadId).eq("user_id", user.id).single();
   if (error) throw error;
+  const thread = threadData as ThreadDetailRow;
   const { data: messages, error: messageError } = await supabase.from("mail_messages").select("id,direction,from_email,body_text,created_at,provider_message_id,in_reply_to,references_header,is_ai_generated").eq("thread_id", threadId).eq("user_id", user.id).order("created_at", { ascending: true });
   if (messageError) throw messageError;
   await supabase.from("mail_threads").update({ unread_count: 0 }).eq("id", threadId);
   await supabase.from("mail_messages").update({ is_read: true }).eq("thread_id", threadId).eq("direction", "inbound");
   const participants = Array.isArray(thread.participants) ? thread.participants : [];
-  const mailboxEmail = (thread as any).mailboxes?.email ?? "";
-  return { id: thread.id, subject: thread.subject, mailboxId: thread.mailbox_id, mailbox: mailboxEmail, participant: participants.find((p: string) => p.toLowerCase() !== mailboxEmail.toLowerCase()) ?? participants[0] ?? "", messages: (messages ?? []).map((m: any) => ({ id: m.id, direction: m.direction, from: m.from_email, body: m.body_text, time: new Date(m.created_at).toLocaleString(), providerMessageId: m.provider_message_id, references: m.references_header, ai: m.is_ai_generated })) };
+  const mailboxEmail = joinedOne(thread.mailboxes)?.email ?? "";
+  return { id: thread.id, subject: thread.subject, mailboxId: thread.mailbox_id, mailbox: mailboxEmail, participant: participants.find((p: string) => p.toLowerCase() !== mailboxEmail.toLowerCase()) ?? participants[0] ?? "", messages: ((messages ?? []) as MessageDetailRow[]).map((m) => ({ id: m.id, direction: m.direction, from: m.from_email, body: m.body_text, time: new Date(m.created_at).toLocaleString(), providerMessageId: m.provider_message_id, references: m.references_header, ai: m.is_ai_generated })) };
 }
 
 export async function listAutomationRules() {
@@ -273,18 +359,19 @@ export async function getDeliverabilityOverview() {
     supabase.from("message_tracking_tokens").select("id,created_at,message_tracking_events(event_type)").eq("user_id", user.id).gte("created_at", since),
   ]);
   for (const result of [mailboxRes, domainRes, seedRes, testRes, settingsRes, sentRes, bounceRes, replyRes, complaintRes, tokenRes]) {
-    if ((result as any).error) throw (result as any).error;
+    if (result.error) throw result.error;
   }
   const sent30d = sentRes.count ?? 0;
   const bounces = bounceRes.count ?? 0;
   const replies = replyRes.count ?? 0;
   const complaints = complaintRes.count ?? 0;
-  const tokens = tokenRes.data ?? [];
-  const openedMessages = tokens.filter((t: any) => (t.message_tracking_events ?? []).some((e: any) => e.event_type === "open")).length;
-  const clickedMessages = tokens.filter((t: any) => (t.message_tracking_events ?? []).some((e: any) => e.event_type === "click")).length;
+  type TrackingTokenRow = { id: string; created_at: string; message_tracking_events: { event_type: string }[] | null };
+  const tokens = (tokenRes.data ?? []) as TrackingTokenRow[];
+  const openedMessages = tokens.filter((t) => (t.message_tracking_events ?? []).some((e) => e.event_type === "open")).length;
+  const clickedMessages = tokens.filter((t) => (t.message_tracking_events ?? []).some((e) => e.event_type === "click")).length;
   const trackedMessages = tokens.length;
-  const domains = domainRes.data ?? [];
-  const authScore = domains.length ? domains.reduce((sum: number, d: any) => sum + Number(d.health_score || 0), 0) / domains.length : 50;
+  const domains = (domainRes.data ?? []) as DeliverabilityDomainRow[];
+  const authScore = domains.length ? domains.reduce((sum: number, d) => sum + Number(d.health_score || 0), 0) / domains.length : 50;
   const bounceRate = sent30d ? (bounces / sent30d) * 100 : 0;
   const complaintRate = sent30d ? (complaints / sent30d) * 100 : 0;
   const qualityPenalty = Math.min(35, bounceRate * 5 + complaintRate * 100);
