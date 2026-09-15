@@ -1,11 +1,12 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { parseRawEmail } from "@/lib/mail/raw";
 import { runtimeCredentials, type StoredMailbox } from "@/lib/mail/account";
 import { fetchInboxMessages } from "@/lib/mail/imap";
 import { externalThreadKey } from "@/lib/mail/threading";
 import { classifySystemMail } from "@/lib/deliverability/bounce";
 
-export async function syncMailboxToDatabase(supabase: any, mailbox: StoredMailbox & { last_sync_at?: string | null; last_uid?: number | null }, limit = 100) {
+export async function syncMailboxToDatabase(supabase: SupabaseClient, mailbox: StoredMailbox & { last_sync_at?: string | null; last_uid?: number | null }, limit = 100) {
   const credentials = await runtimeCredentials(mailbox);
   const since = mailbox.last_sync_at ? new Date(new Date(mailbox.last_sync_at).getTime() - 5 * 60 * 1000) : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
   const messages = await fetchInboxMessages(credentials.imap, { since, minUid: mailbox.last_uid ? Number(mailbox.last_uid) + 1 : undefined, limit });
@@ -18,7 +19,7 @@ export async function syncMailboxToDatabase(supabase: any, mailbox: StoredMailbo
     if (!sender || sender === mailbox.email.toLowerCase()) continue;
     const key = externalThreadKey({ subject: message.subject, from: sender, mailbox: mailbox.email, inReplyTo: message.inReplyTo, references: message.references });
     let thread: { id: string } | null = null;
-    let linkedMetadata: Record<string, any> | null = null;
+    let linkedMetadata: Record<string, unknown> | null = null;
 
     if (message.inReplyTo) {
       const linked = await supabase.from("mail_messages").select("thread_id,metadata").eq("mailbox_id", mailbox.id).eq("provider_message_id", message.inReplyTo).maybeSingle();

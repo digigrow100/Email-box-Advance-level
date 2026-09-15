@@ -17,10 +17,12 @@ function validTime(value: unknown, fallback: string) {
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 32_000);
+    const body = await jsonBody(request, 32_000);
+    const replyModes = ["off", "draft", "auto_send"] as const;
+    const requestedReplyMode = String(body.replyMode ?? "");
     const row = {
       user_id: user.id,
-      reply_mode: ["off", "draft", "auto_send"].includes(body.replyMode) ? body.replyMode : "draft",
+      reply_mode: (replyModes as readonly string[]).includes(requestedReplyMode) ? requestedReplyMode : "draft",
       max_auto_replies_per_day: boundedInt(body.maxAutoRepliesPerDay, 10, 0, 100),
       max_ai_drafts_per_day: boundedInt(body.maxAiDraftsPerDay, 50, 0, 500),
       auto_reply_delay_minutes: boundedInt(body.autoReplyDelayMinutes, 5, 0, 1440),

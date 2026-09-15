@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 350_000);
+    const body = await jsonBody(request, 350_000);
     const name = boundedText(body.name, "Campaign name", 160);
     const mailboxId = boundedText(body.mailboxId, "Mailbox", 100);
     const subject = boundedText(body.subject, "Subject", 998);
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const { data: mailbox } = await supabase.from("mailboxes").select("id").eq("id", mailboxId).eq("user_id", user.id).maybeSingle();
     if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
 
-    let templateId: string | null = body.templateId ? String(body.templateId) : null;
+    const templateId: string | null = body.templateId ? String(body.templateId) : null;
     if (templateId) {
       const { data: template } = await supabase.from("templates").select("id").eq("id", templateId).eq("user_id", user.id).maybeSingle();
       if (!template) throw new Error("Template not found");
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     const eligible = (contacts ?? []).filter((contact: { id: string; status: string }) => contact.status === "active");
     if (!eligible.length) throw new Error("No eligible active contacts selected");
 
-    const start = body.startAt ? new Date(body.startAt) : new Date(Date.now() + 60_000);
+    const start = typeof body.startAt === "string" || typeof body.startAt === "number" ? new Date(body.startAt) : new Date(Date.now() + 60_000);
     if (Number.isNaN(start.getTime()) || start < new Date(Date.now() - 60_000)) throw new Error("Invalid campaign start time");
 
     const { data: workspace, error: workspaceError } = await supabase.from("workspace_settings")

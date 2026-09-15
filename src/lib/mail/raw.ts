@@ -1,5 +1,5 @@
 import "server-only";
-import PostalMime from "postal-mime";
+import PostalMime, { type Attachment } from "postal-mime";
 
 type AttachmentMeta = {
   filename: string | null;
@@ -30,10 +30,10 @@ export async function parseRawEmail(source: Buffer | string) {
   const parsed = await PostalMime.parse(source, { maxNestingDepth: 50 });
   const html = typeof parsed.html === "string" ? parsed.html : "";
   const text = (parsed.text?.trim() || stripHtml(html) || "").slice(0, 250_000);
-  const attachments: AttachmentMeta[] = (parsed.attachments ?? []).slice(0, 100).map((attachment: any) => ({
+  const attachments: AttachmentMeta[] = (parsed.attachments ?? []).slice(0, 100).map((attachment: Attachment) => ({
     filename: typeof attachment.filename === "string" ? attachment.filename.slice(0, 255) : null,
     mimeType: typeof attachment.mimeType === "string" ? attachment.mimeType.slice(0, 255) : null,
-    size: typeof attachment.content?.byteLength === "number" ? attachment.content.byteLength : null,
+    size: typeof attachment.content === "object" && attachment.content && "byteLength" in attachment.content ? attachment.content.byteLength : null,
     contentId: typeof attachment.contentId === "string" ? attachment.contentId.slice(0, 500) : null,
   }));
   return { text, attachments };

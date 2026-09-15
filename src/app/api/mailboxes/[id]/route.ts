@@ -12,7 +12,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 16_000);
+    const body = await jsonBody(request, 16_000);
     const { data: mailbox, error } = await supabase.from("mailboxes").select("*").eq("id", id).eq("user_id", user.id).single();
     if (error || !mailbox) throw new Error("Mailbox not found");
 

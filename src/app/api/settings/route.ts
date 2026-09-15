@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 32_000);
+    const body = await jsonBody(request, 32_000);
     const row = {
       user_id: user.id,
       workspace_name: boundedText(body.workspaceName || "My Workspace", "Workspace name", 120),

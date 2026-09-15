@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 20_000);
+    const body = await jsonBody(request, 20_000);
     const action = body.action === "check" ? "check" : "start";
 
     if (action === "start") {
@@ -24,7 +24,11 @@ export async function POST(request: Request) {
       if (seedsError) throw seedsError;
       if (countError) throw countError;
       if ((testsToday ?? 0) >= 10) throw new Error("Daily placement-test limit reached (10 per workspace)");
-      const usable = (seeds ?? []).filter((s: any) => s.mailbox_id !== source.id && s.mailboxes?.email).slice(0, 20);
+      type SeedRow = { id: string; mailbox_id: string; label: string; provider_hint: string; mailboxes?: { email?: string } | { email?: string }[] | null };
+      const usable = ((seeds ?? []) as SeedRow[]).filter((s) => {
+        const joined = Array.isArray(s.mailboxes) ? s.mailboxes[0] : s.mailboxes;
+        return s.mailbox_id !== source.id && Boolean(joined?.email);
+      }).slice(0, 20);
       if (!usable.length) throw new Error("Add at least one different connected mailbox as a seed inbox first");
       const marker = placementMarker();
       const subject = `[${marker}] MailPilot inbox placement test`;
@@ -50,8 +54,10 @@ export async function POST(request: Request) {
     const { data: results, error: resultsError } = await supabase.from("placement_results").select("id,seed_inbox_id,recipient_email,seed_inboxes(mailbox_id)").eq("test_id", test.id).eq("user_id", user.id);
     if (resultsError) throw resultsError;
     let found = 0;
-    for (const row of results ?? []) {
-      const mailboxId = (row as any).seed_inboxes?.mailbox_id;
+    type ResultRow = { id: string; seed_inbox_id: string; recipient_email: string; seed_inboxes?: { mailbox_id?: string } | { mailbox_id?: string }[] | null };
+    for (const row of (results ?? []) as ResultRow[]) {
+      const seedInbox = Array.isArray(row.seed_inboxes) ? row.seed_inboxes[0] : row.seed_inboxes;
+      const mailboxId = seedInbox?.mailbox_id;
       if (!mailboxId) continue;
       const { data: seedMailbox } = await supabase.from("mailboxes").select("*").eq("id", mailboxId).eq("user_id", user.id).single();
       if (!seedMailbox) continue;

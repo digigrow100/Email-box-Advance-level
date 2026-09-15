@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function writeAudit(_supabase: any, input: {
+export async function writeAudit(_supabase: unknown, input: {
   userId: string;
   action: string;
   actorType?: "user" | "system" | "automation";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireUser } from "@/lib/supabase/server";
 import { generateAiReply } from "@/lib/ai";
 import { boundedText, jsonBody } from "@/lib/validation";
@@ -6,16 +7,20 @@ import { dateKeyInTimeZone } from "@/lib/time";
 
 export const runtime = "nodejs";
 
+type ThreadMessageRow = { direction: "inbound" | "outbound"; from_email: string; body_text: string };
+type ThreadRow = { id: string; subject: string; mailbox_id: string; mailboxes?: { email?: string } | { email?: string }[] | null };
+type ToneProfileRow = { name?: string; instructions?: string; example_snippets?: unknown };
+
 export async function POST(request: Request) {
   let quotaReserved = false;
   let quotaDate = "";
   let quotaUserId = "";
-  let quotaClient: any = null;
+  let quotaClient: SupabaseClient | null = null;
   try {
     const { supabase, user } = await requireUser();
     quotaClient = supabase;
     quotaUserId = user.id;
-    const payload = await jsonBody<any>(request, 32_000);
+    const payload = await jsonBody(request, 32_000);
     const threadId = boundedText(payload.threadId, "Thread", 100);
 
     const [{ data: thread, error: threadError }, { data: messages, error: messageError }, { data: settings, error: settingsError }] = await Promise.all([
@@ -27,7 +32,8 @@ export async function POST(request: Request) {
     if (messageError) throw messageError;
     if (settingsError) throw settingsError;
 
-    const latest = [...(messages ?? [])].reverse().find((message: any) => message.direction === "inbound");
+    const threadMessages = (messages ?? []) as ThreadMessageRow[];
+    const latest = [...threadMessages].reverse().find((message) => message.direction === "inbound");
     if (!latest) return NextResponse.json({ error: "No inbound email found in this thread" }, { status: 400 });
 
     quotaDate = dateKeyInTimeZone(settings?.timezone ?? "UTC");
@@ -36,20 +42,22 @@ export async function POST(request: Request) {
     if (!reserved) return NextResponse.json({ error: "Daily AI draft limit reached" }, { status: 429 });
     quotaReserved = true;
 
-    let tone: any = null;
+    let tone: ToneProfileRow | null = null;
     if (settings?.default_tone_profile_id) {
       const { data, error } = await supabase.from("tone_profiles").select("*").eq("id", settings.default_tone_profile_id).eq("user_id", user.id).maybeSingle();
       if (error) throw error;
       tone = data;
     }
 
-    const mailboxEmail = (thread as any).mailboxes?.email ?? "";
+    const threadRow = thread as ThreadRow;
+    const mailboxJoin = Array.isArray(threadRow.mailboxes) ? threadRow.mailboxes[0] : threadRow.mailboxes;
+    const mailboxEmail = mailboxJoin?.email ?? "";
     const body = await generateAiReply({
       senderEmail: latest.from_email,
       recipientEmail: mailboxEmail,
       subject: thread.subject,
       inboundText: latest.body_text,
-      recentThread: (messages ?? []).map((message: any) => ({ direction: message.direction, text: message.body_text })),
+      recentThread: threadMessages.map((message) => ({ direction: message.direction, text: message.body_text })),
       tone: tone ? {
         name: tone.name,
         instructions: tone.instructions,

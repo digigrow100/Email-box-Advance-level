@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 20_000);
+    const body = await jsonBody(request, 20_000);
     const domain = boundedText(body.domain, "Domain", 255).toLowerCase();
     const selectors = Array.isArray(body.selectors) ? body.selectors.map((x: unknown) => String(x).trim().slice(0, 63)).filter(Boolean).slice(0, 12) : [];
     const result = await checkDomainAuthentication(domain, selectors);

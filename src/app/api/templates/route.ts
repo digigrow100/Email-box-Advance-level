@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 300_000);
+    const body = await jsonBody(request, 300_000);
     const name = boundedText(body.name, "Name", 160);
     const subject = boundedText(body.subject, "Subject", 998);
     const messageBody = boundedText(body.body, "Body", 250_000);

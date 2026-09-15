@@ -3,13 +3,17 @@ import { requireUser } from "@/lib/supabase/server";
 import { boundedInt, boundedText, jsonBody } from "@/lib/validation";
 
 const allowedActions = new Set(["mark_read", "archive", "ai_reply"]);
+const allowedModes = new Set(["off", "draft", "auto_send"]);
+
+type RawAction = Record<string, unknown> & { type?: unknown; mode?: unknown; delayMinutes?: unknown; toneProfileId?: unknown; instructions?: unknown };
 
 function validActions(value: unknown) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 10) throw new Error("Automation needs 1–10 actions");
-  return value.map((action: any) => {
-    if (!action || typeof action !== "object" || !allowedActions.has(action.type)) throw new Error("Unsupported automation action");
-    if (action.type === "ai_reply") {
-      const mode = ["off", "draft", "auto_send"].includes(action.mode) ? action.mode : "draft";
+  return (value as RawAction[]).map((action) => {
+    const type = typeof action?.type === "string" ? action.type : "";
+    if (!action || typeof action !== "object" || !allowedActions.has(type)) throw new Error("Unsupported automation action");
+    if (type === "ai_reply") {
+      const mode = typeof action.mode === "string" && allowedModes.has(action.mode) ? action.mode : "draft";
       return {
         type: "ai_reply",
         mode,
@@ -18,18 +22,18 @@ function validActions(value: unknown) {
         instructions: action.instructions ? String(action.instructions).slice(0, 4_000) : undefined,
       };
     }
-    return { type: action.type };
+    return { type };
   });
 }
 
 export async function POST(request: Request) {
   try {
     const { supabase, user } = await requireUser();
-    const body = await jsonBody<any>(request, 64_000);
+    const body = await jsonBody(request, 64_000);
     const name = boundedText(body.name, "Name", 120);
     if (body.triggerType !== "inbound_email") throw new Error("Only inbound-email automations are supported in this version");
     const actions = validActions(body.actions);
-    const c = body.conditions && typeof body.conditions === "object" ? body.conditions : {};
+    const c: Record<string, unknown> = body.conditions && typeof body.conditions === "object" ? body.conditions as Record<string, unknown> : {};
     const conditions = {
       mailboxId: c.mailboxId ? String(c.mailboxId).slice(0, 100) : undefined,
       fromContains: c.fromContains ? String(c.fromContains).slice(0, 320) : undefined,

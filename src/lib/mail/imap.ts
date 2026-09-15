@@ -1,6 +1,11 @@
 import "server-only";
 import { ImapFlow } from "imapflow";
+import type { SearchObject, ListResponse, MessageAddressObject, MessageEnvelopeObject } from "imapflow";
 import { env } from "@/lib/env";
+
+// Some IMAP servers report a References header inside the ENVELOPE response even though it
+// isn't part of the standard ENVELOPE structure defined by imapflow's types.
+type EnvelopeWithReferences = MessageEnvelopeObject & { references?: string[] | string };
 
 export type ImapCredentials = {
   host: string;
@@ -41,15 +46,16 @@ export async function fetchInboxMessages(credentials: ImapCredentials, options: 
   const lock = await imap.getMailboxLock("INBOX");
   const items: Array<{ uid: number; from: string; to: string[]; cc: string[]; subject: string; messageId?: string; inReplyTo?: string; references?: string; date?: Date; source: Buffer }> = [];
   try {
-    const search: any = options.minUid ? { uid: `${options.minUid}:*` } : options.since ? { since: options.since } : { all: true };
+    const search: SearchObject = options.minUid ? { uid: `${options.minUid}:*` } : options.since ? { since: options.since } : { all: true };
     for await (const message of imap.fetch(search, { uid: true, envelope: true, source: true })) {
       const from = message.envelope?.from?.[0];
-      const refs = Array.isArray((message.envelope as any)?.references) ? (message.envelope as any).references.join(" ") : "";
+      const envelope = message.envelope as EnvelopeWithReferences | undefined;
+      const refs = Array.isArray(envelope?.references) ? envelope.references.join(" ") : "";
       items.push({
         uid: message.uid,
         from: from?.address ?? "",
-        to: (message.envelope?.to ?? []).map((a: any) => a.address ?? "").filter(Boolean),
-        cc: (message.envelope?.cc ?? []).map((a: any) => a.address ?? "").filter(Boolean),
+        to: (message.envelope?.to ?? []).map((a: MessageAddressObject) => a.address ?? "").filter(Boolean),
+        cc: (message.envelope?.cc ?? []).map((a: MessageAddressObject) => a.address ?? "").filter(Boolean),
         subject: message.envelope?.subject ?? "",
         messageId: message.envelope?.messageId,
         inReplyTo: message.envelope?.inReplyTo,
@@ -89,9 +95,9 @@ export async function archiveImapMessage(credentials: ImapCredentials, uid: numb
   await imap.connect();
   try {
     const mailboxes = await imap.list();
-    const archive = mailboxes.find((box: any) => box.specialUse === "\\Archive")
-      ?? mailboxes.find((box: any) => box.specialUse === "\\All")
-      ?? mailboxes.find((box: any) => /(^|[\\/])archives?$/i.test(String(box.path)) || /all mail/i.test(String(box.path)));
+    const archive = mailboxes.find((box: ListResponse) => box.specialUse === "\\Archive")
+      ?? mailboxes.find((box: ListResponse) => box.specialUse === "\\All")
+      ?? mailboxes.find((box: ListResponse) => /(^|[\\/])archives?$/i.test(String(box.path)) || /all mail/i.test(String(box.path)));
     if (!archive?.path) return false;
     const lock = await imap.getMailboxLock("INBOX");
     try {
@@ -131,8 +137,8 @@ export async function findMessagePlacement(credentials: ImapCredentials, marker:
   await imap.connect();
   try {
     const boxes = await imap.list();
-    const prioritized = [...boxes].sort((a: any, b: any) => {
-      const rank = (box: any) => {
+    const prioritized = [...boxes].sort((a: ListResponse, b: ListResponse) => {
+      const rank = (box: ListResponse) => {
         if (String(box.path).toUpperCase() === "INBOX") return 0;
         if (box.specialUse === "\\Junk" || /(^|[\\/])(spam|junk)( mail)?$/i.test(String(box.path))) return 1;
         return 2;
@@ -141,8 +147,8 @@ export async function findMessagePlacement(credentials: ImapCredentials, marker:
     }).slice(0, 40);
 
     for (const box of prioritized) {
-      const path = String((box as any).path || "");
-      if (!path || (box as any).specialUse === "\\Trash" || (box as any).specialUse === "\\Drafts" || (box as any).specialUse === "\\Sent") continue;
+      const path = String(box.path || "");
+      if (!path || box.specialUse === "\\Trash" || box.specialUse === "\\Drafts" || box.specialUse === "\\Sent") continue;
       let lock: { release(): void } | null = null;
       try {
         lock = await imap.getMailboxLock(path);
@@ -151,7 +157,7 @@ export async function findMessagePlacement(credentials: ImapCredentials, marker:
         const uid = uids[uids.length - 1];
         const message = await imap.fetchOne(uid, { envelope: true, headers: ["authentication-results", "arc-authentication-results", "received-spf"] }, { uid: true });
         if (!message) continue;
-        const spam = (box as any).specialUse === "\\Junk" || /(^|[\\/])(spam|junk)( mail)?$/i.test(path);
+        const spam = box.specialUse === "\\Junk" || /(^|[\\/])(spam|junk)( mail)?$/i.test(path);
         const inbox = path.toUpperCase() === "INBOX";
         const envelopeDate = message.envelope?.date ? new Date(message.envelope.date) : undefined;
         return { placement: inbox ? "inbox" : spam ? "spam" : "other", folder: path, uid, date: envelopeDate, authentication: authenticationFromHeaders(message.headers) };

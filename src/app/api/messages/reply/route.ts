@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     const { supabase, user } = await requireUser();
     const idempotencyHeader = request.headers.get("idempotency-key");
     const idempotencyKey = idempotencyHeader ? boundedText(idempotencyHeader, "Idempotency key", 160) : undefined;
-    const body = await jsonBody<any>(request, 300_000);
+    const body = await jsonBody(request, 300_000);
     const threadId = boundedText(body.threadId, "Thread", 100);
     const mailboxId = boundedText(body.mailboxId, "Mailbox", 100);
     const to = requireEmail(body.to, "recipient");
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const references = [last?.references_header, last?.provider_message_id].filter(Boolean).join(" ");
 
     if (body.mode === "schedule") {
-      const at = body.scheduledAt ? new Date(body.scheduledAt) : new Date(Date.now() + 10 * 60_000);
+      const at = typeof body.scheduledAt === "string" || typeof body.scheduledAt === "number" ? new Date(body.scheduledAt) : new Date(Date.now() + 10 * 60_000);
       if (Number.isNaN(at.getTime()) || at <= new Date()) throw new Error("Choose a future schedule time");
       const { data, error } = await supabase.from("scheduled_messages").insert({
         user_id: user.id,
