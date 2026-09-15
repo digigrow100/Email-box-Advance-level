@@ -1,0 +1,5 @@
+import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { ScheduledActions } from "@/components/scheduled-actions";
+import { listScheduledMessages } from "@/lib/data/repository";
+export default async function ScheduledPage(){const rows=await listScheduledMessages();return <AppShell><PageHeader title="Drafts & scheduled" description="Review AI drafts and messages waiting to send."/><div className="card overflow-hidden"><div className="responsive-table"><table className="data-table"><thead><tr><th>Subject</th><th>To</th><th>Status</th><th>When</th><th>Source</th><th>Actions</th></tr></thead><tbody>{rows.map((r:any)=><tr key={r.id}><td className="font-semibold">{r.subject}</td><td>{(r.to_emails??[]).join(", ")}</td><td className="capitalize">{r.status}</td><td>{new Date(r.scheduled_at).toLocaleString()}</td><td>{r.is_ai_generated?"AI":"Manual"}</td><td><ScheduledActions id={r.id} status={r.status}/></td></tr>)}</tbody></table></div></div></AppShell>}

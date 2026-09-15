@@ -1,0 +1,39 @@
+{
+  "name": "mailpilot",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "trigger:dev": "npx trigger.dev@latest dev",
+    "trigger:deploy": "npx trigger.dev@latest deploy",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build",
+    "preflight": "node scripts/preflight.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.7.0",
+    "@supabase/supabase-js": "^2.116.0",
+    "@trigger.dev/sdk": "^4.5.16",
+    "imapflow": "^2.0.5",
+    "lucide-react": "^0.468.0",
+    "next": "16.3.5",
+    "nodemailer": "^10.0.10",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "postal-mime": "^3.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@trigger.dev/build": "^4.5.16",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.3.5",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0"
+  }
+}
